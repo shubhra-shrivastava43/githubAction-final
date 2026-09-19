@@ -6,9 +6,6 @@ on:
       target_env:
         required: true
         type: string
-      tfvars_file:
-        required: true
-        type: string
       azure_rg:
         required: true
         type: string
@@ -40,7 +37,6 @@ jobs:
         with:
           terraform_version: 1.6.0
 
-      # Azure Passwordless Login (OIDC)
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -50,7 +46,7 @@ jobs:
 
       - name: Terraform Init
         run: |
-          cd terraform
+          cd environment/${{ inputs.target_env }}
           terraform init \
             -backend-config="resource_group_name=${{ inputs.azure_rg }}" \
             -backend-config="storage_account_name=${{ inputs.azure_storage_account }}" \
@@ -59,11 +55,11 @@ jobs:
 
       - name: Terraform Plan
         run: |
-          cd terraform
-          terraform plan -var-file="${{ inputs.tfvars_file }}" -out=tfplan
+          cd environment/${{ inputs.target_env }}
+          terraform plan -out=tfplan
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          cd terraform
+          cd environment/${{ inputs.target_env }}
           terraform apply -auto-approve tfplan
