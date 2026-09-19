@@ -15,6 +15,9 @@ on:
       azure_container:
         required: true
         type: string
+      tfvars_file:
+        required: false
+        type: string
     secrets:
       AZURE_CLIENT_ID:
         required: true
