@@ -1,0 +1,69 @@
+name: "Reusable Terraform Engine"
+
+on:
+  workflow_call:
+    inputs:
+      target_env:
+        required: true
+        type: string
+      tfvars_file:
+        required: true
+        type: string
+      azure_rg:
+        required: true
+        type: string
+      azure_storage_account:
+        required: true
+        type: string
+      azure_container:
+        required: true
+        type: string
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+
+jobs:
+  terraform-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target_env }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      # Azure Passwordless Login (OIDC)
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          cd terraform
+          terraform init \
+            -backend-config="resource_group_name=${{ inputs.azure_rg }}" \
+            -backend-config="storage_account_name=${{ inputs.azure_storage_account }}" \
+            -backend-config="container_name=${{ inputs.azure_container }}" \
+            -backend-config="key=${{ inputs.target_env }}.tfstate"
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan -var-file="${{ inputs.tfvars_file }}" -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          cd terraform
+          terraform apply -auto-approve tfplan

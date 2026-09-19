@@ -1,0 +1,42 @@
+name: "Main Infrastructure Pipeline"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-dev:
+    name: "Deploy Dev"
+    uses: ./.github/workflows/tf-reusable.yml
+    with:
+      target_env: "dev"
+      tfvars_file: "dev.tfvars"
+      azure_rg: "tfstate-rg"
+      azure_storage_account: "tfstatestorageacct"
+      azure_container: "tfstate"
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+  deploy-prod:
+    name: "Deploy Prod"
+    needs: deploy-dev
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/tf-reusable.yml
+    with:
+      target_env: "prod"
+      tfvars_file: "prod.tfvars"
+      azure_rg: "tfstate-rg"
+      azure_storage_account: "tfstatestorageacct"
+      azure_container: "tfstate"
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
